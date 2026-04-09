@@ -8,7 +8,10 @@ struct MarkerPosition {
 
 impl MarkerPosition {
     pub fn new(position: f64, increment: f64) -> Self {
-        MarkerPosition { position, increment }
+        MarkerPosition {
+            position,
+            increment,
+        }
     }
 
     pub fn increment(&mut self) {
@@ -23,37 +26,60 @@ fn between(x: &f64, low: &f64, high: &f64, include_high: bool) -> bool {
     return x >= low && x < high;
 }
 
-fn parabolic_height(index: usize, d_sign: f64, marker_positions: &Vec<MarkerPosition>, marker_heights: &Vec<f64>) -> f64 {
+fn parabolic_height(
+    index: usize,
+    d_sign: f64,
+    marker_positions: &Vec<MarkerPosition>,
+    marker_heights: &Vec<f64>,
+) -> f64 {
     let a = d_sign / (marker_positions[index + 1].position - marker_positions[index - 1].position);
-    
+
     let b = marker_positions[index].position - marker_positions[index - 1].position + d_sign;
-    let c = (marker_heights[index + 1] - marker_heights[index]) / (marker_positions[index + 1].position - marker_positions[index].position);
+    let c = (marker_heights[index + 1] - marker_heights[index])
+        / (marker_positions[index + 1].position - marker_positions[index].position);
 
     let d = marker_positions[index + 1].position - marker_positions[index].position - d_sign;
-    let e = (marker_heights[index] - marker_heights[index - 1]) / (marker_positions[index].position - marker_positions[index - 1].position);
+    let e = (marker_heights[index] - marker_heights[index - 1])
+        / (marker_positions[index].position - marker_positions[index - 1].position);
 
     return marker_heights[index] + a * (b * c + d * e);
 }
 
-fn linear_height(index: usize, d_sign: f64, marker_positions: &Vec<MarkerPosition>, marker_heights: &Vec<f64>) -> f64 {
+fn linear_height(
+    index: usize,
+    d_sign: f64,
+    marker_positions: &Vec<MarkerPosition>,
+    marker_heights: &Vec<f64>,
+) -> f64 {
     let d_sign_index = (index as f64 + d_sign) as usize;
-    let ratio = (marker_heights[d_sign_index] - marker_heights[index]) / (marker_positions[d_sign_index].position - marker_positions[index].position);
+    let ratio = (marker_heights[d_sign_index] - marker_heights[index])
+        / (marker_positions[d_sign_index].position - marker_positions[index].position);
     return marker_heights[index] + d_sign * ratio;
 }
 
-fn adjust_middle_markers(marker_positions: &mut Vec<MarkerPosition>, desired_marker_positions: &Vec<MarkerPosition>, marker_heights: &mut Vec<f64>) {
+fn adjust_middle_markers(
+    marker_positions: &mut Vec<MarkerPosition>,
+    desired_marker_positions: &Vec<MarkerPosition>,
+    marker_heights: &mut Vec<f64>,
+) {
     for index in 1..4 {
         let d = desired_marker_positions[index].position - marker_positions[index].position;
-        let marker_diff_next = marker_positions[index + 1].position - marker_positions[index].position;
-        let marker_diff_prev = marker_positions[index - 1].position - marker_positions[index].position;
+        let marker_diff_next =
+            marker_positions[index + 1].position - marker_positions[index].position;
+        let marker_diff_prev =
+            marker_positions[index - 1].position - marker_positions[index].position;
         if (d >= 1.0 && marker_diff_next > 1.0) || (d <= -1.0 && marker_diff_prev < -1.0) {
             let d_sign = d.signum();
-            let new_marker_height = parabolic_height(index, d_sign, marker_positions, marker_heights);
+            let new_marker_height =
+                parabolic_height(index, d_sign, marker_positions, marker_heights);
 
-            if marker_heights[index - 1] < new_marker_height && new_marker_height < marker_heights[index + 1] {
+            if marker_heights[index - 1] < new_marker_height
+                && new_marker_height < marker_heights[index + 1]
+            {
                 marker_heights[index] = new_marker_height;
             } else {
-                marker_heights[index] = linear_height(index, d_sign, marker_positions, marker_heights);
+                marker_heights[index] =
+                    linear_height(index, d_sign, marker_positions, marker_heights);
             }
 
             marker_positions[index].position += d_sign;
@@ -62,13 +88,13 @@ fn adjust_middle_markers(marker_positions: &mut Vec<MarkerPosition>, desired_mar
 }
 
 /// Estimates a percentile value from a sequence of numbers.
-/// 
+///
 /// O(n) runtime complexity, O(1) space complexity.
-/// 
+///
 /// Jain, Raj, and Imrich Chlamtac.
 /// "The P2 algorithm for dynamic calculation of quantiles and histograms without storing observations."
 /// Communications of the ACM 28.10 (1985): 1076-1085.
-/// 
+///
 /// ### Arguments
 ///
 /// * `xs` - An iterator of f64 values to estimate the percentile of.
@@ -78,7 +104,10 @@ fn adjust_middle_markers(marker_positions: &mut Vec<MarkerPosition>, desired_mar
 /// ### Returns
 ///
 /// The estimated percentile value.
-pub fn p_square<'a, I>(xs: &mut I, percentile: f64) -> Result<f64> where I: Iterator<Item = &'a f64> {
+pub fn p_square<'a, I>(xs: &mut I, percentile: f64) -> Result<f64>
+where
+    I: Iterator<Item = &'a f64>,
+{
     if percentile > 1.0 || percentile < 0.0 {
         return Err(anyhow!("Invalid percentile provided."));
     }
@@ -91,7 +120,8 @@ pub fn p_square<'a, I>(xs: &mut I, percentile: f64) -> Result<f64> where I: Iter
     // Construct the main data containers.
     let mut marker_heights = prefix.to_vec();
     marker_heights.sort_by(f64::total_cmp);
-    let mut marker_positions: Vec<MarkerPosition> = (1..6).map(|x| MarkerPosition::new(x as f64, 1.0)).collect();
+    let mut marker_positions: Vec<MarkerPosition> =
+        (1..6).map(|x| MarkerPosition::new(x as f64, 1.0)).collect();
     let mut desired_marker_positions = vec![
         MarkerPosition::new(1.0, 0.0),
         MarkerPosition::new(1.0 + 2.0 * percentile, percentile / 2.0),
@@ -117,14 +147,18 @@ pub fn p_square<'a, I>(xs: &mut I, percentile: f64) -> Result<f64> where I: Iter
             marker_heights[4] = *x;
             k = 4;
         }
-        
+
         for marker_position in marker_positions.iter_mut().skip(k) {
             marker_position.increment();
         }
         for marker_position in desired_marker_positions.iter_mut() {
             marker_position.increment();
         }
-        adjust_middle_markers(&mut marker_positions, &desired_marker_positions, &mut marker_heights);
+        adjust_middle_markers(
+            &mut marker_positions,
+            &desired_marker_positions,
+            &mut marker_heights,
+        );
     }
 
     return Ok(marker_heights[2]);
@@ -170,7 +204,8 @@ mod tests {
     #[test]
     fn test_full_psquare() {
         let xs = vec![
-            0.02, 0.5, 0.74, 3.39, 0.83, 22.37, 10.15, 15.43, 38.62, 15.92, 34.60, 10.28, 1.47, 0.40, 0.05, 11.39, 0.27, 0.42, 0.09, 11.37
+            0.02, 0.5, 0.74, 3.39, 0.83, 22.37, 10.15, 15.43, 38.62, 15.92, 34.60, 10.28, 1.47,
+            0.40, 0.05, 11.39, 0.27, 0.42, 0.09, 11.37,
         ];
         let out = p_square(&mut xs.iter(), 0.5);
         assert_eq!(out.unwrap(), 4.246239408803644);
