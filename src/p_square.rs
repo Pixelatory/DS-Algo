@@ -1,5 +1,10 @@
 use anyhow::{Result, anyhow};
 
+// Possible improvements:
+// - Calculate multiple percentiles at the same time.
+// - Number of markers as an argument.
+// - Give height function as argument.
+
 #[derive(Debug)]
 struct MarkerPosition {
     position: f64,
